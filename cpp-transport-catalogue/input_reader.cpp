@@ -13,7 +13,7 @@ namespace input_reader {
         auto not_space = str.find_first_not_of(' ');
         auto comma = str.find(',');
 
-        if (comma == str.npos) {
+        if (comma == std::string_view::npos) {
             return { nan, nan };
         }
 
@@ -123,6 +123,19 @@ namespace input_reader {
                 catalogue.AddBus(bus);
             }
         }
+    }
+
+    void ReadAndProcessBaseRequests(std::istream& input, transport_catalogue::TransportCatalogue& catalogue) {
+        int base_request_count;
+        input >> base_request_count >> std::ws;
+
+        InputReader reader;
+        for (int i = 0; i < base_request_count; ++i) {
+            std::string line;
+            std::getline(input, line);
+            reader.ParseLine(line);
+        }
+        reader.ApplyCommands(catalogue);
     }
 
 } // namespace input_reader

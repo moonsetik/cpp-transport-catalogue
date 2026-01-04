@@ -24,35 +24,47 @@ namespace stat_reader {
         std::string_view argument = trimmed_request.substr(space_pos + 1);
 
         if (command == "Bus") {
-            transport_catalogue::BusInfo info = transport_catalogue.GetBusInfo(argument);
+            auto bus_stats = transport_catalogue.GetBusStats(argument);
 
-            if (info.found) {
-                output << "Bus " << *info.name << ": "
-                    << info.stops_count << " stops on route, "
-                    << info.unique_stops_count << " unique stops, "
-                    << std::fixed << std::setprecision(6)
-                    << info.route_length << " route length\n";
+            if (!bus_stats) {
+                output << "Bus " << argument << ": not found\n";
             }
             else {
-                output << "Bus " << argument << ": not found\n";
+                output << "Bus " << argument << ": "
+                    << bus_stats->stops_count << " stops on route, "
+                    << bus_stats->unique_stops_count << " unique stops, "
+                    << std::fixed << std::setprecision(6)
+                    << bus_stats->route_length << " route length\n";
             }
         }
         else if (command == "Stop") {
-            transport_catalogue::StopInfo info = transport_catalogue.GetStopInfo(argument);
+            auto stop_info = transport_catalogue.GetStopInfo(argument);
 
-            if (!info.found) {
+            if (!stop_info) {
                 output << "Stop " << argument << ": not found\n";
             }
-            else if (info.buses.empty()) {
-                output << "Stop " << *info.name << ": no buses\n";
+            else if (!stop_info->buses || stop_info->buses->empty()) {
+                output << "Stop " << stop_info->name << ": no buses\n";
             }
             else {
-                output << "Stop " << *info.name << ": buses";
-                for (const auto& bus_name : info.buses) {
+                output << "Stop " << stop_info->name << ": buses";
+                for (const auto& bus_name : *(stop_info->buses)) {
                     output << " " << bus_name;
                 }
                 output << "\n";
             }
+        }
+    }
+
+    void ProcessAndPrintStatRequests(std::istream& input, std::ostream& output,
+        const transport_catalogue::TransportCatalogue& catalogue) {
+        int stat_request_count;
+        input >> stat_request_count >> std::ws;
+
+        for (int i = 0; i < stat_request_count; ++i) {
+            std::string line;
+            std::getline(input, line);
+            ParseAndPrintStat(catalogue, line, output);
         }
     }
 

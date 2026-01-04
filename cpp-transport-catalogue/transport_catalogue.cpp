@@ -36,39 +36,41 @@ namespace transport_catalogue {
         return it != bus_index_.end() ? it->second : nullptr;
     }
 
-    BusInfo TransportCatalogue::GetBusInfo(std::string_view name) const {
-        BusInfo info;
-
+    std::optional<BusStats> TransportCatalogue::GetBusStats(std::string_view name) const {
         const Bus* bus = FindBus(name);
         if (!bus) {
-            info.found = false;
-            return info;
+            return std::nullopt;
         }
 
-        info.name = std::string(name);
-        info.stops_count = bus->stops.size();
-        info.unique_stops_count = bus->GetUniqueStopsCount();
-        info.route_length = bus->CalculateRouteLength();
-        info.found = true;
+        BusStats stats;
+        stats.stops_count = bus->stops.size();
 
-        return info;
+        std::unordered_set<std::string_view> unique_names;
+        for (const auto& stop : bus->stops) {
+            unique_names.insert(stop->name);
+        }
+        stats.unique_stops_count = unique_names.size();
+
+        stats.route_length = 0.0;
+        for (size_t i = 1; i < bus->stops.size(); ++i) {
+            stats.route_length += ComputeDistance(bus->stops[i - 1]->coordinates, bus->stops[i]->coordinates);
+        }
+
+        return stats;
     }
 
-    StopInfo TransportCatalogue::GetStopInfo(std::string_view name) const {
-        StopInfo info;
+    std::optional<StopInfo> TransportCatalogue::GetStopInfo(std::string_view name) const {
         const Stop* stop = FindStop(name);
-
         if (!stop) {
-            info.found = false;
-            return info;
+            return std::nullopt;
         }
 
-        info.name = std::string(name);
-        info.found = true;
+        StopInfo info;
+        info.name = stop->name;
 
         auto it = stop_to_buses_.find(stop);
         if (it != stop_to_buses_.end()) {
-            info.buses = it->second;
+            info.buses = &(it->second);
         }
 
         return info;

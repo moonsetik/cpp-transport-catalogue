@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -31,5 +32,7 @@ namespace input_reader {
     private:
         std::vector<CommandDescription> commands_;
     };
+
+    void ReadAndProcessBaseRequests(std::istream& input, transport_catalogue::TransportCatalogue& catalogue);
 
 } // namespace input_reader

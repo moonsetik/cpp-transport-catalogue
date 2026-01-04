@@ -29,36 +29,17 @@ namespace transport_catalogue {
         std::string name;
         std::vector<const Stop*> stops;
         bool is_roundtrip;
-
-        size_t GetUniqueStopsCount() const {
-            std::unordered_set<std::string_view> unique_names;
-            for (const auto& stop : stops) {
-                unique_names.insert(stop->name);
-            }
-            return unique_names.size();
-        }
-
-        double CalculateRouteLength() const {
-            double length = 0.0;
-            for (size_t i = 1; i < stops.size(); ++i) {
-                length += ComputeDistance(stops[i - 1]->coordinates, stops[i]->coordinates);
-            }
-            return length;
-        }
     };
 
-    struct BusInfo {
-        std::optional<std::string> name;
-        size_t stops_count = 0;
-        size_t unique_stops_count = 0;
-        double route_length = 0.0;
-        bool found = false;
+    struct BusStats {
+        size_t stops_count;
+        size_t unique_stops_count;
+        double route_length;
     };
 
     struct StopInfo {
-        std::optional<std::string> name;
-        std::set<std::string_view> buses;
-        bool found = false;
+        std::string name;
+        const std::set<std::string_view>* buses = nullptr;
     };
 
     class TransportCatalogue {
@@ -69,8 +50,8 @@ namespace transport_catalogue {
         const Stop* FindStop(std::string_view name) const;
         const Bus* FindBus(std::string_view name) const;
 
-        BusInfo GetBusInfo(std::string_view name) const;
-        StopInfo GetStopInfo(std::string_view name) const;
+        std::optional<BusStats> GetBusStats(std::string_view name) const;
+        std::optional<StopInfo> GetStopInfo(std::string_view name) const;
 
     private:
         std::deque<Stop> stops_;
