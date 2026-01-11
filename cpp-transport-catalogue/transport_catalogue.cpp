@@ -12,6 +12,24 @@ namespace transport_catalogue {
         stop_index_[added_stop->name] = added_stop;
     }
 
+    void TransportCatalogue::AddDistance(const Stop* from, const Stop* to, double distance) {
+        distances_[{from, to}] = distance;
+    }
+
+    double TransportCatalogue::GetDistance(const Stop* from, const Stop* to) const {
+        auto it = distances_.find({ from, to });
+        if (it != distances_.end()) {
+            return it->second;
+        }
+
+        auto reverse_it = distances_.find({ to, from });
+        if (reverse_it != distances_.end()) {
+            return reverse_it->second;
+        }
+
+        return ComputeDistance(from->coordinates, to->coordinates);
+    }
+
     void TransportCatalogue::AddBus(const Bus& bus) {
         if (bus_index_.count(bus.name)) {
             return;
@@ -53,8 +71,16 @@ namespace transport_catalogue {
 
         stats.route_length = 0.0;
         for (size_t i = 1; i < bus->stops.size(); ++i) {
-            stats.route_length += ComputeDistance(bus->stops[i - 1]->coordinates, bus->stops[i]->coordinates);
+            stats.route_length += GetDistance(bus->stops[i - 1], bus->stops[i]);
         }
+
+        stats.geographic_length = 0.0;
+        for (size_t i = 1; i < bus->stops.size(); ++i) {
+            stats.geographic_length += ComputeDistance(bus->stops[i - 1]->coordinates,
+                bus->stops[i]->coordinates);
+        }
+
+        stats.curvature = stats.route_length / stats.geographic_length;
 
         return stats;
     }
@@ -76,4 +102,4 @@ namespace transport_catalogue {
         return info;
     }
 
-} // namespace transport_catalogue
+}

@@ -33,8 +33,10 @@ namespace stat_reader {
                 output << "Bus " << argument << ": "
                     << bus_stats->stops_count << " stops on route, "
                     << bus_stats->unique_stops_count << " unique stops, "
-                    << std::fixed << std::setprecision(6)
-                    << bus_stats->route_length << " route length\n";
+                    << std::fixed << std::setprecision(0)
+                    << bus_stats->route_length << " route length, "
+                    << std::setprecision(6)
+                    << bus_stats->curvature << " curvature\n";
             }
         }
         else if (command == "Stop") {
@@ -68,4 +70,4 @@ namespace stat_reader {
         }
     }
 
-} // namespace stat_reader
+}

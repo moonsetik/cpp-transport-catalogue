@@ -4,25 +4,59 @@
 #include <cassert>
 #include <iterator>
 #include <map>
+#include <regex>
 
 namespace input_reader {
 
-    Coordinates ParseCoordinates(std::string_view str) {
+    struct StopWithDistances {
+        Coordinates coords;
+        std::vector<std::pair<std::string, double>> distances;
+    };
+
+    StopWithDistances ParseStopWithDistances(std::string_view str) {
         static const double nan = std::nan("");
+        StopWithDistances result;
 
-        auto not_space = str.find_first_not_of(' ');
-        auto comma = str.find(',');
+        std::string str_copy(str);
+        std::regex distance_regex(R"((\d+)m to ([^,]+))");
+        std::smatch matches;
 
-        if (comma == std::string_view::npos) {
-            return { nan, nan };
+        std::string remaining = str_copy;
+        while (std::regex_search(remaining, matches, distance_regex)) {
+            double distance = std::stod(matches[1].str());
+            std::string stop_name = matches[2].str();
+
+            size_t start = stop_name.find_first_not_of(' ');
+            size_t end = stop_name.find_last_not_of(' ');
+            if (start != std::string::npos && end != std::string::npos) {
+                stop_name = stop_name.substr(start, end - start + 1);
+            }
+
+            result.distances.emplace_back(stop_name, distance);
+
+            size_t pos = remaining.find(matches[0].str());
+            remaining.erase(pos, matches[0].length());
+
+            if (!remaining.empty() && remaining[0] == ',') {
+                remaining.erase(0, 1);
+            }
         }
 
-        auto not_space2 = str.find_first_not_of(' ', comma + 1);
+        auto not_space = remaining.find_first_not_of(' ');
+        auto comma = remaining.find(',');
 
-        double lat = std::stod(std::string(str.substr(not_space, comma - not_space)));
-        double lng = std::stod(std::string(str.substr(not_space2)));
+        if (comma == std::string::npos) {
+            result.coords = { nan, nan };
+            return result;
+        }
 
-        return { lat, lng };
+        auto not_space2 = remaining.find_first_not_of(' ', comma + 1);
+
+        double lat = std::stod(remaining.substr(not_space, comma - not_space));
+        double lng = std::stod(remaining.substr(not_space2));
+
+        result.coords = { lat, lng };
+        return result;
     }
 
     std::string_view Trim(std::string_view string) {
@@ -93,17 +127,33 @@ namespace input_reader {
 
     void InputReader::ApplyCommands(transport_catalogue::TransportCatalogue& catalogue) const {
         std::map<std::string, Coordinates> stops_to_add;
+        std::map<std::string, std::vector<std::pair<std::string, double>>> distances_to_add;
 
         for (const auto& cmd : commands_) {
             if (cmd.command == "Stop") {
-                Coordinates coords = ParseCoordinates(cmd.description);
-                stops_to_add[cmd.id] = coords;
+                auto stop_data = ParseStopWithDistances(cmd.description);
+                stops_to_add[cmd.id] = stop_data.coords;
+                if (!stop_data.distances.empty()) {
+                    distances_to_add[cmd.id] = stop_data.distances;
+                }
             }
         }
 
         for (const auto& [name, coords] : stops_to_add) {
             transport_catalogue::Stop stop{ name, coords };
             catalogue.AddStop(stop);
+        }
+
+        for (const auto& [from_name, distances] : distances_to_add) {
+            const auto* from_stop = catalogue.FindStop(from_name);
+            if (!from_stop) continue;
+
+            for (const auto& [to_name, distance] : distances) {
+                const auto* to_stop = catalogue.FindStop(to_name);
+                if (to_stop) {
+                    catalogue.AddDistance(from_stop, to_stop, distance);
+                }
+            }
         }
 
         for (const auto& cmd : commands_) {
@@ -138,4 +188,4 @@ namespace input_reader {
         reader.ApplyCommands(catalogue);
     }
 
-} // namespace input_reader
+}
