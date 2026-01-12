@@ -13,10 +13,14 @@ namespace transport_catalogue {
     }
 
     void TransportCatalogue::AddDistance(const Stop* from, const Stop* to, double distance) {
-        distances_[{from, to}] = distance;
+        if (from && to && stop_index_.count(from->name) && stop_index_.count(to->name)) {
+            distances_[{from, to}] = distance;
+        }
     }
 
     double TransportCatalogue::GetDistance(const Stop* from, const Stop* to) const {
+        if (!from || !to) return 0.0;
+
         auto it = distances_.find({ from, to });
         if (it != distances_.end()) {
             return it->second;
@@ -65,22 +69,35 @@ namespace transport_catalogue {
 
         std::unordered_set<std::string_view> unique_names;
         for (const auto& stop : bus->stops) {
-            unique_names.insert(stop->name);
+            if (stop) {
+                unique_names.insert(stop->name);
+            }
         }
         stats.unique_stops_count = unique_names.size();
 
         stats.route_length = 0.0;
         for (size_t i = 1; i < bus->stops.size(); ++i) {
-            stats.route_length += GetDistance(bus->stops[i - 1], bus->stops[i]);
+            if (bus->stops[i - 1] && bus->stops[i]) {
+                stats.route_length += GetDistance(bus->stops[i - 1], bus->stops[i]);
+            }
         }
 
         stats.geographic_length = 0.0;
         for (size_t i = 1; i < bus->stops.size(); ++i) {
-            stats.geographic_length += ComputeDistance(bus->stops[i - 1]->coordinates,
-                bus->stops[i]->coordinates);
+            if (bus->stops[i - 1] && bus->stops[i]) {
+                stats.geographic_length += ComputeDistance(
+                    bus->stops[i - 1]->coordinates,
+                    bus->stops[i]->coordinates
+                );
+            }
         }
 
-        stats.curvature = stats.route_length / stats.geographic_length;
+        if (stats.geographic_length > 0) {
+            stats.curvature = stats.route_length / stats.geographic_length;
+        }
+        else {
+            stats.curvature = 1.0;
+        }
 
         return stats;
     }
