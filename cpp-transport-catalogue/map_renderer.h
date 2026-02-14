@@ -7,8 +7,11 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <set>
 
 namespace map_renderer {
+
+    class SphereProjector; 
 
     struct RenderSettings {
         double width;
@@ -28,12 +31,27 @@ namespace map_renderer {
     class MapRenderer {
     public:
         MapRenderer(const transport_catalogue::TransportCatalogue& catalogue, const RenderSettings& settings);
-
         svg::Document Render() const;
 
     private:
         const transport_catalogue::TransportCatalogue& catalogue_;
         RenderSettings settings_;
+
+        void AddRouteLines(svg::Document& doc,
+            const std::vector<const transport_catalogue::Bus*>& buses,
+            const SphereProjector& projector) const;
+
+        void AddBusLabels(svg::Document& doc,
+            const std::vector<const transport_catalogue::Bus*>& buses,
+            const SphereProjector& projector) const;
+
+        void AddStopCircles(svg::Document& doc,
+            const std::set<const transport_catalogue::Stop*>& stops,
+            const SphereProjector& projector) const;
+
+        void AddStopLabels(svg::Document& doc,
+            const std::set<const transport_catalogue::Stop*>& stops,
+            const SphereProjector& projector) const;
     };
 
 } // namespace map_renderer
