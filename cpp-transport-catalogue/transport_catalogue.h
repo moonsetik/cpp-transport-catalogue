@@ -8,9 +8,6 @@
 #include <unordered_set>
 #include <set>
 #include <optional>
-#include <iostream>
-#include <iomanip>
-#include <cmath>
 
 #include "geo.h"
 #include "domain.h"
@@ -41,4 +38,5 @@ namespace transport_catalogue {
         std::unordered_map<const Stop*, std::set<std::string_view>> stop_to_buses_;
         std::unordered_map<std::pair<const Stop*, const Stop*>, double, PairHash> distances_;
     };
-}
+
+} // namespace transport_catalogue

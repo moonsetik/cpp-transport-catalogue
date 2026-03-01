@@ -94,6 +94,21 @@ namespace json {
         return std::get<Dict>(value_);
     }
 
+    // Неконстантные версии
+    Array& Node::AsArray() {
+        if (!IsArray()) {
+            throw std::logic_error("Not an array");
+        }
+        return std::get<Array>(value_);
+    }
+
+    Dict& Node::AsMap() {
+        if (!IsMap()) {
+            throw std::logic_error("Not a map");
+        }
+        return std::get<Dict>(value_);
+    }
+
     bool Node::operator==(const Node& other) const {
         return value_ == other.value_;
     }

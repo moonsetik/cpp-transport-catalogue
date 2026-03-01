@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <set>
-#include <unordered_set>
+#include <string_view>
 #include "geo.h"
 
 namespace transport_catalogue {
@@ -19,8 +19,8 @@ namespace transport_catalogue {
 
     struct Bus {
         std::string name;
-        std::vector<const Stop*> stops;         
-        std::vector<const Stop*> original_stops; 
+        std::vector<const Stop*> stops;
+        std::vector<const Stop*> original_stops;
         bool is_roundtrip;
     };
 

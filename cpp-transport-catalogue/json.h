@@ -54,7 +54,12 @@ namespace json {
         const Array& AsArray() const;
         const Dict& AsMap() const;
 
+        // Неконстантные версии для модификации
+        Array& AsArray();
+        Dict& AsMap();
+
         const Value& GetValue() const { return value_; }
+        Value& GetValue() { return value_; }
 
         bool operator==(const Node& other) const;
         bool operator!=(const Node& other) const;

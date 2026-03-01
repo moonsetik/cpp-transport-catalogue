@@ -80,6 +80,7 @@ namespace map_renderer {
     svg::Document MapRenderer::Render() const {
         svg::Document doc;
 
+        // Собираем данные: остановки, используемые в маршрутах, и автобусы с ненулевым списком остановок
         std::set<const transport_catalogue::Stop*> stops_in_routes;
         std::vector<const transport_catalogue::Bus*> buses_with_stops;
         for (const auto& bus : catalogue_.GetBuses()) {
@@ -95,127 +96,32 @@ namespace map_renderer {
             return doc;
         }
 
+        // Строим проектор
         std::vector<Coordinates> coords;
         coords.reserve(stops_in_routes.size());
         for (const auto* stop : stops_in_routes) {
             coords.push_back(stop->coordinates);
         }
-
         SphereProjector projector(coords.begin(), coords.end(),
             settings_.width, settings_.height, settings_.padding);
 
+        // Сортируем автобусы по имени для стабильного порядка
         std::sort(buses_with_stops.begin(), buses_with_stops.end(),
             [](const auto* lhs, const auto* rhs) {
                 return lhs->name < rhs->name;
             });
 
-        size_t color_index = 0;
-        for (const auto* bus : buses_with_stops) {
-            const auto& color = settings_.color_palette[color_index % settings_.color_palette.size()];
-            ++color_index;
+        // Рисуем линии маршрутов
+        AddRouteLines(doc, buses_with_stops, projector);
 
-            std::vector<const transport_catalogue::Stop*> route_points = bus->stops;
-            if (bus->is_roundtrip && !route_points.empty()) {
-                if (route_points.back() != route_points.front()) {
-                    route_points.push_back(route_points.front());
-                }
-            }
+        // Рисуем названия автобусов
+        AddBusLabels(doc, buses_with_stops, projector);
 
-            svg::Polyline polyline;
-            for (const auto* stop : route_points) {
-                polyline.AddPoint(projector(stop->coordinates));
-            }
-            polyline.SetFillColor(svg::NoneColor)
-                .SetStrokeColor(color)
-                .SetStrokeWidth(settings_.line_width)
-                .SetStrokeLineCap(svg::StrokeLineCap::ROUND)
-                .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
-            doc.Add(std::move(polyline));
-        }
+        // Рисуем кружки остановок
+        AddStopCircles(doc, stops_in_routes, projector);
 
-        color_index = 0;
-        for (const auto* bus : buses_with_stops) {
-            const auto& color = settings_.color_palette[color_index % settings_.color_palette.size()];
-            ++color_index;
-
-            std::vector<const transport_catalogue::Stop*> endpoints;
-            if (bus->is_roundtrip) {
-                endpoints.push_back(bus->original_stops.front());
-            }
-            else {
-                endpoints.push_back(bus->original_stops.front());
-                if (bus->original_stops.size() > 1 && bus->original_stops.back() != bus->original_stops.front()) {
-                    endpoints.push_back(bus->original_stops.back());
-                }
-            }
-
-            for (const auto* stop : endpoints) {
-                svg::Point p = projector(stop->coordinates);
-
-                svg::Text underlay;
-                underlay.SetPosition(p)
-                    .SetOffset({ settings_.bus_label_offset.first, settings_.bus_label_offset.second })
-                    .SetFontSize(settings_.bus_label_font_size)
-                    .SetFontFamily("Verdana")
-                    .SetFontWeight("bold")
-                    .SetData(bus->name)
-                    .SetFillColor(settings_.underlayer_color)
-                    .SetStrokeColor(settings_.underlayer_color)
-                    .SetStrokeWidth(settings_.underlayer_width)
-                    .SetStrokeLineCap(svg::StrokeLineCap::ROUND)
-                    .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
-                doc.Add(std::move(underlay));
-
-                svg::Text text;
-                text.SetPosition(p)
-                    .SetOffset({ settings_.bus_label_offset.first, settings_.bus_label_offset.second })
-                    .SetFontSize(settings_.bus_label_font_size)
-                    .SetFontFamily("Verdana")
-                    .SetFontWeight("bold")
-                    .SetData(bus->name)
-                    .SetFillColor(color);
-                doc.Add(std::move(text));
-            }
-        }
-
-        std::vector<const transport_catalogue::Stop*> sorted_stops(stops_in_routes.begin(), stops_in_routes.end());
-        std::sort(sorted_stops.begin(), sorted_stops.end(),
-            [](const auto* lhs, const auto* rhs) { return lhs->name < rhs->name; });
-
-        for (const auto* stop : sorted_stops) {
-            svg::Point p = projector(stop->coordinates);
-            svg::Circle circle;
-            circle.SetCenter(p)
-                .SetRadius(settings_.stop_radius)
-                .SetFillColor("white");
-            doc.Add(std::move(circle));
-        }
-
-        for (const auto* stop : sorted_stops) {
-            svg::Point p = projector(stop->coordinates);
-
-            svg::Text underlay;
-            underlay.SetPosition(p)
-                .SetOffset({ settings_.stop_label_offset.first, settings_.stop_label_offset.second })
-                .SetFontSize(settings_.stop_label_font_size)
-                .SetFontFamily("Verdana")
-                .SetData(stop->name)
-                .SetFillColor(settings_.underlayer_color)
-                .SetStrokeColor(settings_.underlayer_color)
-                .SetStrokeWidth(settings_.underlayer_width)
-                .SetStrokeLineCap(svg::StrokeLineCap::ROUND)
-                .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
-            doc.Add(std::move(underlay));
-
-            svg::Text text;
-            text.SetPosition(p)
-                .SetOffset({ settings_.stop_label_offset.first, settings_.stop_label_offset.second })
-                .SetFontSize(settings_.stop_label_font_size)
-                .SetFontFamily("Verdana")
-                .SetData(stop->name)
-                .SetFillColor("black");
-            doc.Add(std::move(text));
-        }
+        // Рисуем названия остановок
+        AddStopLabels(doc, stops_in_routes, projector);
 
         return doc;
     }
@@ -229,8 +135,10 @@ namespace map_renderer {
             ++color_index;
 
             std::vector<const transport_catalogue::Stop*> route_points = bus->stops;
-            if (bus->is_roundtrip && !route_points.empty() && route_points.back() != route_points.front()) {
-                route_points.push_back(route_points.front());
+            if (bus->is_roundtrip && !route_points.empty()) {
+                if (route_points.back() != route_points.front()) {
+                    route_points.push_back(route_points.front());
+                }
             }
 
             svg::Polyline polyline;
@@ -257,8 +165,7 @@ namespace map_renderer {
             std::vector<const transport_catalogue::Stop*> endpoints;
             if (bus->is_roundtrip) {
                 endpoints.push_back(bus->original_stops.front());
-            }
-            else {
+            } else {
                 endpoints.push_back(bus->original_stops.front());
                 if (bus->original_stops.size() > 1 && bus->original_stops.back() != bus->original_stops.front()) {
                     endpoints.push_back(bus->original_stops.back());
@@ -268,6 +175,7 @@ namespace map_renderer {
             for (const auto* stop : endpoints) {
                 svg::Point p = projector(stop->coordinates);
 
+                // Подложка
                 svg::Text underlay;
                 underlay.SetPosition(p)
                     .SetOffset({ settings_.bus_label_offset.first, settings_.bus_label_offset.second })
@@ -282,6 +190,7 @@ namespace map_renderer {
                     .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
                 doc.Add(std::move(underlay));
 
+                // Основной текст
                 svg::Text text;
                 text.SetPosition(p)
                     .SetOffset({ settings_.bus_label_offset.first, settings_.bus_label_offset.second })
@@ -322,6 +231,7 @@ namespace map_renderer {
         for (const auto* stop : sorted_stops) {
             svg::Point p = projector(stop->coordinates);
 
+            // Подложка
             svg::Text underlay;
             underlay.SetPosition(p)
                 .SetOffset({ settings_.stop_label_offset.first, settings_.stop_label_offset.second })
@@ -335,6 +245,7 @@ namespace map_renderer {
                 .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
             doc.Add(std::move(underlay));
 
+            // Основной текст
             svg::Text text;
             text.SetPosition(p)
                 .SetOffset({ settings_.stop_label_offset.first, settings_.stop_label_offset.second })
