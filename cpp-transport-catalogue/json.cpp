@@ -94,7 +94,6 @@ namespace json {
         return std::get<Dict>(value_);
     }
 
-    // Неконстантные версии
     Array& Node::AsArray() {
         if (!IsArray()) {
             throw std::logic_error("Not an array");

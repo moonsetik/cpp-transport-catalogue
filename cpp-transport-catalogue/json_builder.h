@@ -24,7 +24,7 @@ private:
     void DoEndDict();
     void DoEndArray();
     Node* AddNode(Node node);
-    Node DoBuild() const;  // объявлен как const
+    Node DoBuild() const;  
 
     struct Context {
         enum Type { DICT, ARRAY };

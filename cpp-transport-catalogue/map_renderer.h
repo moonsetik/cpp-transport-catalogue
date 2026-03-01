@@ -37,10 +37,6 @@ namespace map_renderer {
         const transport_catalogue::TransportCatalogue& catalogue_;
         RenderSettings settings_;
 
-        //auto GatherData() const
-        //    -> std::pair<std::set<const transport_catalogue::Stop*>,
-        //    std::vector<const transport_catalogue::Bus*>>;
-
         void AddRouteLines(svg::Document& doc,
             const std::vector<const transport_catalogue::Bus*>& buses,
             const SphereProjector& projector) const;

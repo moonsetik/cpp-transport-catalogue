@@ -175,7 +175,6 @@ namespace map_renderer {
             for (const auto* stop : endpoints) {
                 svg::Point p = projector(stop->coordinates);
 
-                // Подложка
                 svg::Text underlay;
                 underlay.SetPosition(p)
                     .SetOffset({ settings_.bus_label_offset.first, settings_.bus_label_offset.second })
@@ -190,7 +189,6 @@ namespace map_renderer {
                     .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
                 doc.Add(std::move(underlay));
 
-                // Основной текст
                 svg::Text text;
                 text.SetPosition(p)
                     .SetOffset({ settings_.bus_label_offset.first, settings_.bus_label_offset.second })
@@ -231,7 +229,6 @@ namespace map_renderer {
         for (const auto* stop : sorted_stops) {
             svg::Point p = projector(stop->coordinates);
 
-            // Подложка
             svg::Text underlay;
             underlay.SetPosition(p)
                 .SetOffset({ settings_.stop_label_offset.first, settings_.stop_label_offset.second })
@@ -245,7 +242,6 @@ namespace map_renderer {
                 .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND);
             doc.Add(std::move(underlay));
 
-            // Основной текст
             svg::Text text;
             text.SetPosition(p)
                 .SetOffset({ settings_.stop_label_offset.first, settings_.stop_label_offset.second })

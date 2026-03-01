@@ -54,7 +54,6 @@ namespace json {
         const Array& AsArray() const;
         const Dict& AsMap() const;
 
-        // Неконстантные версии для модификации
         Array& AsArray();
         Dict& AsMap();
 
