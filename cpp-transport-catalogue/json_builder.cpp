@@ -4,40 +4,6 @@ namespace json {
 
 using namespace std::literals;
 
-Builder& Builder::Key(std::string key) {
-    DoKey(std::move(key));
-    return *this;
-}
-
-Builder& Builder::Value(Node value) {
-    AddNode(std::move(value));
-    return *this;
-}
-
-Builder& Builder::StartDict() {
-    DoStartDict();
-    return *this;
-}
-
-Builder& Builder::EndDict() {
-    DoEndDict();
-    return *this;
-}
-
-Builder& Builder::StartArray() {
-    DoStartArray();
-    return *this;
-}
-
-Builder& Builder::EndArray() {
-    DoEndArray();
-    return *this;
-}
-
-Node Builder::Build() {
-    return DoBuild();
-}
-
 void Builder::DoKey(std::string key) {
     if (stack_.empty() || stack_.back().type != Context::DICT || stack_.back().pending_key.has_value()) {
         throw std::logic_error("Key called in wrong context");
@@ -83,11 +49,11 @@ Node* Builder::AddNode(Node node) {
         arr.push_back(std::move(node));
         return &arr.back();
     }
-    // Context::DICT
+    
     if (!current.pending_key.has_value()) {
         throw std::logic_error("No pending key for value in dict");
     }
-    Dict& dict = current.container->AsMap();
+    Dict& dict = current.container->AsMap();  
     auto [it, inserted] = dict.emplace(std::move(*current.pending_key), std::move(node));
     if (!inserted) {
         throw std::logic_error("Duplicate key in dict");
