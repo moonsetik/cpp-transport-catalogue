@@ -80,7 +80,6 @@ namespace map_renderer {
     svg::Document MapRenderer::Render() const {
         svg::Document doc;
 
-        // Собираем данные: остановки, используемые в маршрутах, и автобусы с ненулевым списком остановок
         std::set<const transport_catalogue::Stop*> stops_in_routes;
         std::vector<const transport_catalogue::Bus*> buses_with_stops;
         for (const auto& bus : catalogue_.GetBuses()) {
@@ -96,7 +95,6 @@ namespace map_renderer {
             return doc;
         }
 
-        // Строим проектор
         std::vector<Coordinates> coords;
         coords.reserve(stops_in_routes.size());
         for (const auto* stop : stops_in_routes) {
@@ -105,22 +103,17 @@ namespace map_renderer {
         SphereProjector projector(coords.begin(), coords.end(),
             settings_.width, settings_.height, settings_.padding);
 
-        // Сортируем автобусы по имени для стабильного порядка
         std::sort(buses_with_stops.begin(), buses_with_stops.end(),
             [](const auto* lhs, const auto* rhs) {
                 return lhs->name < rhs->name;
             });
 
-        // Рисуем линии маршрутов
         AddRouteLines(doc, buses_with_stops, projector);
 
-        // Рисуем названия автобусов
         AddBusLabels(doc, buses_with_stops, projector);
 
-        // Рисуем кружки остановок
         AddStopCircles(doc, stops_in_routes, projector);
 
-        // Рисуем названия остановок
         AddStopLabels(doc, stops_in_routes, projector);
 
         return doc;

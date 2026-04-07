@@ -28,6 +28,8 @@ namespace transport_catalogue {
         std::optional<StopInfo> GetStopInfo(std::string_view name) const;
 
         const std::deque<Bus>& GetBuses() const { return buses_; }
+        
+        std::vector<const Stop*> GetAllStops() const;
 
     private:
         std::deque<Stop> stops_;

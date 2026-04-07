@@ -21,16 +21,25 @@ namespace json_reader {
             ProcessBaseRequests(base_it->second.AsArray());
         }
 
-        std::optional<map_renderer::RenderSettings> render_settings;
         auto render_it = root.find("render_settings");
         if (render_it != root.end() && render_it->second.IsMap()) {
-            render_settings = ReadRenderSettings(render_it->second.AsMap());
+            render_settings_ = ReadRenderSettings(render_it->second.AsMap());
+        }
+
+        auto routing_it = root.find("routing_settings");
+        if (routing_it != root.end() && routing_it->second.IsMap()) {
+            ProcessRoutingSettings(routing_it->second.AsMap());
+        }
+
+        std::optional<transport_router::TransportRouter> router;
+        if (routing_settings_.has_value()) {
+            router.emplace(catalogue_, *routing_settings_);
         }
 
         json::Array responses;
         auto stat_it = root.find("stat_requests");
         if (stat_it != root.end() && stat_it->second.IsArray()) {
-            responses = ProcessStatRequests(stat_it->second.AsArray(), render_settings);
+            responses = ProcessStatRequests(stat_it->second.AsArray(), render_settings_, router);
         }
 
         json::Document output_doc(std::move(responses));
@@ -84,7 +93,7 @@ namespace json_reader {
                 result.push_back(*it);
             }
             return result;
-            };
+        };
 
         for (const auto& item : base_requests) {
             const json::Dict& request = item.AsMap();
@@ -119,6 +128,13 @@ namespace json_reader {
         }
     }
 
+    void JSONReader::ProcessRoutingSettings(const json::Dict& routing_dict) {
+        transport_router::RoutingSettings rs;
+        rs.bus_wait_time = routing_dict.at("bus_wait_time").AsInt();
+        rs.bus_velocity = routing_dict.at("bus_velocity").AsDouble();
+        routing_settings_ = rs;
+    }
+
     std::optional<map_renderer::RenderSettings> JSONReader::ReadRenderSettings(const json::Dict& render_dict) {
         map_renderer::RenderSettings settings;
         settings.width = render_dict.at("width").AsDouble();
@@ -147,7 +163,8 @@ namespace json_reader {
     }
 
     json::Array JSONReader::ProcessStatRequests(const json::Array& stat_requests,
-        const std::optional<map_renderer::RenderSettings>& render_settings) {
+        const std::optional<map_renderer::RenderSettings>& render_settings,
+        const std::optional<transport_router::TransportRouter>& router) {
         json::Array responses;
         for (const auto& req_node : stat_requests) {
             const auto& request = req_node.AsMap();
@@ -165,19 +182,30 @@ namespace json_reader {
             else if (type == "Map") {
                 if (render_settings) {
                     responses.push_back(ProcessMapRequest(id, *render_settings));
-                }
-                else {
+                } else {
                     responses.push_back(json::Node(json::Dict{
                         {"request_id", id},
                         {"error_message", "not found"s}
-                        }));
+                    }));
+                }
+            }
+            else if (type == "Route") {
+                if (router) {
+                    const std::string& from = request.at("from").AsString();
+                    const std::string& to = request.at("to").AsString();
+                    responses.push_back(ProcessRouteRequest(id, *router, from, to));
+                } else {
+                    responses.push_back(json::Node(json::Dict{
+                        {"request_id", id},
+                        {"error_message", "not found"s}
+                    }));
                 }
             }
             else {
                 responses.push_back(json::Node(json::Dict{
                     {"request_id", id},
                     {"error_message", "not found"s}
-                    }));
+                }));
             }
         }
         return responses;
@@ -189,7 +217,7 @@ namespace json_reader {
             return json::Node(json::Dict{
                 {"request_id", id},
                 {"error_message", "not found"s}
-                });
+            });
         }
         json::Dict response;
         response["request_id"] = id;
@@ -206,7 +234,7 @@ namespace json_reader {
             return json::Node(json::Dict{
                 {"request_id", id},
                 {"error_message", "not found"s}
-                });
+            });
         }
         json::Dict response;
         response["request_id"] = id;
@@ -234,6 +262,39 @@ namespace json_reader {
         json::Dict response;
         response["request_id"] = id;
         response["map"] = ss.str();
+        return json::Node(std::move(response));
+    }
+
+    json::Node JSONReader::ProcessRouteRequest(int id, const transport_router::TransportRouter& router,
+                                               const std::string& from, const std::string& to) {
+        auto route_info = router.BuildRoute(from, to);
+        if (!route_info) {
+            return json::Node(json::Dict{
+                {"request_id", id},
+                {"error_message", "not found"s}
+            });
+        }
+
+        json::Dict response;
+        response["request_id"] = id;
+        response["total_time"] = route_info->total_time;
+
+        json::Array items;
+        for (const auto& item : route_info->items) {
+            json::Dict item_dict;
+            if (item.type == transport_router::RouteItem::Type::Wait) {
+                item_dict["type"] = "Wait"s;
+                item_dict["stop_name"] = item.stop_name;
+                item_dict["time"] = item.time;
+            } else {
+                item_dict["type"] = "Bus"s;
+                item_dict["bus"] = item.bus_name;
+                item_dict["span_count"] = item.span_count;
+                item_dict["time"] = item.time;
+            }
+            items.push_back(std::move(item_dict));
+        }
+        response["items"] = std::move(items);
         return json::Node(std::move(response));
     }
 

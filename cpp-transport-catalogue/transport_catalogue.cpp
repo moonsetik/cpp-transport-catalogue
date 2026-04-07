@@ -119,4 +119,14 @@ namespace transport_catalogue {
         return info;
     }
 
-}
+    // РЕАЛИЗАЦИЯ МЕТОДА GetAllStops
+    std::vector<const Stop*> TransportCatalogue::GetAllStops() const {
+        std::vector<const Stop*> result;
+        result.reserve(stops_.size());
+        for (const auto& stop : stops_) {
+            result.push_back(&stop);
+        }
+        return result;
+    }
+
+} // namespace transport_catalogue
